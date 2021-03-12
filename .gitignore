@@ -1,0 +1,17 @@
+*.npy
+*.ipynb
+*.pyc
+*.pth.tar
+*.pkl
+*.npy
+*.txt
+events.*
+*.t7
+*.weight
+*.pt
+*.jpg
+.idea/
+*.yaml
+*.pdf
+*.png
+*.pkl
