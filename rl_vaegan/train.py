@@ -45,10 +45,6 @@ cudnn.benchmark = True
 # Load experiment setting
 config = get_config(opts.config)
 
-'''
-    python -m rl_vaegan.train --env-name 'PongDeterministic-v4'
-'''
-
 torch.manual_seed(opts.seed)
 env = create_atari_env(opts.env_name, opts)
 trained_model = ActorCritic(env.observation_space.shape[0], env.action_space)
