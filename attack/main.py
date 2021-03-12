@@ -22,14 +22,10 @@ parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1
 parser.add_argument('--max-episode-length', type=int, default=1000000, help='maximum length of an episode (default: 1000000)')
 parser.add_argument('--env-name', default='BreakoutDeterministic-v4', help='environment to train on (default: BreakoutDeterministic-v4 | PongDeterministic)')
 
-parser.add_argument('--attack', action='store_true', help='attack the reinforcement learning algorithms')
-parser.add_argument('--attacker', default='cw2', help='adversary attack algorithms: fgsm|rand_fgsm|cw2')
-parser.add_argument('--epsilon-adv', type=float, default=0.001, help='epsilon perturbation for attack model.')
-parser.add_argument('--alpha-adv', type=float, default=0.0003, help='epsilon perturbation for attack model.')
-parser.add_argument('--beta-adv', type=float, default=0.0002, help='beta perturbation for random attack.')
-
 parser.add_argument('--test-attacker', default='fgsm', help='adversary attack algorithms: fgsm|rand_fgsm|cw2')
 parser.add_argument('--test-epsilon-adv', type=float, default=0.003, help='epsilon perturbation for attack model.')
+
+parser.add_argument('--which-epoch', type=str, default='00380000', help='using specific epoch trained rl_vaegan model to defense')
 
 parser.add_argument('--gpu-id', type=int, default=0, help='epsilon perturbation for attack model.')
 

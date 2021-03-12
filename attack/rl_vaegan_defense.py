@@ -17,13 +17,12 @@ def transfer_defense(rank, args, shared_model, counter):
     torch.manual_seed(args.seed + rank)
 
     rl_vaegan_path = 'rl_vaegan/output/' + args.env_name + '/checkpoints'
-    which_epoch = '00380000'
 
     env = create_atari_env(args.env_name, args)
 
     import rl_vaegan.transfer as t
     translate_model = t.TransferModel()
-    translate_model.initialize(rl_vaegan_path, which_epoch, args)
+    translate_model.initialize(rl_vaegan_path, arg.which_epoch, args)
     
     env.seed(args.seed + rank)
     if args.black_box_attack:
@@ -78,7 +77,7 @@ def transfer_defense(rank, args, shared_model, counter):
                 else:
                     sys.exit('with attacker in (FGSM | Rand+FGSM | CW2) !')
 
-            '''defense agaist attack'''
+            '''using the rl_vaegan defense against attack'''
             state_def = translate_model.transform_adv(state_adv)
 
             with torch.no_grad():
