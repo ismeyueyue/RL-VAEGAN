@@ -7,6 +7,10 @@ python -m agent.main --env-name 'PongDeterministic-v4'
 ```
 
 ## Train RL-VAEGAN
+- Use the state returned by the agent interacting with the environment to train the RL agent and RL-VAEGAN.
+
+- Or, use the state returned by the well trained agent interacting with the environment to train RL-VAEGAN.
+
 ```python
 python -m rl_vaegan.train --env-name 'PongDeterministic-v4'
 ```
