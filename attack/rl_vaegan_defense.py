@@ -20,6 +20,7 @@ def transfer_defense(rank, args, shared_model, counter):
 
     env = create_atari_env(args.env_name, args)
 
+    '''load trained RL-VAEGAN model'''
     import rl_vaegan.transfer as t
     translate_model = t.TransferModel()
     translate_model.initialize(rl_vaegan_path, arg.which_epoch, args)
@@ -63,7 +64,7 @@ def transfer_defense(rank, args, shared_model, counter):
                 value, logit = model(state)
             prob = F.softmax(logit, dim=-1)
             action = prob.multinomial(num_samples=1)[0]
-            '''attack'''
+            '''adversarial attack'''
             if args.variation == 'adversary':
                 if args.test_attacker ==  'fgsm':
                     # args.epsilon_adv = random.randint(1,5) * 0.001
@@ -77,7 +78,7 @@ def transfer_defense(rank, args, shared_model, counter):
                 else:
                     sys.exit('with attacker in (FGSM | Rand+FGSM | CW2) !')
 
-            '''using the rl_vaegan defense against attack'''
+            '''rl_vaegan style transfer defense'''
             state_def = translate_model.transform_adv(state_adv)
 
             with torch.no_grad():
