@@ -18,10 +18,10 @@ class RL_VAEGAN(nn.Module):
 
         lr = hyperparameters['lr']
         # Initiate the networks
-        self.gen_a = VAEGen(hyperparameters['input_dim_a'], hyperparameters['gen'])  # auto-encoder for domain a
-        self.gen_b = VAEGen(hyperparameters['input_dim_b'], hyperparameters['gen'])  # auto-encoder for domain b
-        self.dis_a = MsImageDis(hyperparameters['input_dim_a'], hyperparameters['dis'])  # discriminator for domain a
-        self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for domain b
+        self.gen_a = VAEGen(hyperparameters['input_dim_a'], hyperparameters['gen'])  # vae for style a
+        self.gen_b = VAEGen(hyperparameters['input_dim_b'], hyperparameters['gen'])  # vae for style b
+        self.dis_a = MsImageDis(hyperparameters['input_dim_a'], hyperparameters['dis'])  # discriminator for style a
+        self.dis_b = MsImageDis(hyperparameters['input_dim_b'], hyperparameters['dis'])  # discriminator for style b
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
 
         self.enc_weight_sharing = nn.Conv2d(256, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
@@ -93,7 +93,7 @@ class RL_VAEGAN(nn.Module):
         h_a = self.enc_weight_sharing(h_a)
         h_b = self.enc_weight_sharing(h_b)
 
-        # decode (within domain)
+        # decode (within style)
         x_a_recon = self.gen_a.decode(h_a + n_a)
         x_b_recon = self.gen_b.decode(h_b + n_b)
 
@@ -101,7 +101,7 @@ class RL_VAEGAN(nn.Module):
         x_a_recon = self.dec_weight_sharing(x_a_recon)
         x_b_recon = self.dec_weight_sharing(x_b_recon)
 
-        # decode (cross domain)
+        # decode (cross style)
         x_ba = self.gen_a.decode(h_b + n_b)
         x_ab = self.gen_b.decode(h_a + n_a)
 
@@ -139,7 +139,7 @@ class RL_VAEGAN(nn.Module):
         self.loss_gen_adv_a = self.dis_a.calc_gen_loss(x_ba)
         self.loss_gen_adv_b = self.dis_b.calc_gen_loss(x_ab)
 
-        '''domain-invariant perceptual loss'''
+        '''style-invariant perceptual loss'''
         self.loss_gen_vgg_a = self.compute_vgg_loss(self.vgg, x_ba, x_b) if hyperparameters['vgg_w'] > 0 else 0
         self.loss_gen_vgg_b = self.compute_vgg_loss(self.vgg, x_ab, x_a) if hyperparameters['vgg_w'] > 0 else 0
 
@@ -179,7 +179,7 @@ class RL_VAEGAN(nn.Module):
         # encode
         h_a, n_a = self.gen_a.encode(x_a)
         h_b, n_b = self.gen_b.encode(x_b)
-        # decode (cross domain)
+        # decode (cross style)
         x_ba = self.gen_a.decode(h_b + n_b)
         x_ab = self.gen_b.decode(h_a + n_a)
         # D loss
