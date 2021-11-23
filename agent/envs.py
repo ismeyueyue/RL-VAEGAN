@@ -2,7 +2,6 @@ import cv2
 import gym
 import numpy as np
 from gym.spaces.box import Box
-import os
 
 change_counter = 1
 positions = [20, 40, 60]

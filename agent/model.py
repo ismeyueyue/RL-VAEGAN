@@ -1,12 +1,12 @@
 import numpy as np
 import torch
+import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.autograd as autograd
-import random
 
 USE_CUDA = torch.cuda.is_available()
-Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if USE_CUDA else autograd.Variable(*args, **kwargs)
+Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda(
+) if USE_CUDA else autograd.Variable(*args, **kwargs)
 
 
 def normalized_columns_initializer(weights, std=1.0):
@@ -73,7 +73,6 @@ class ActorCritic(torch.nn.Module):
         x = F.elu(self.fc(x))
 
         return self.critic_linear(x), self.actor_linear(x)
-
 
 
 class ActorCritic_Substitude(torch.nn.Module):

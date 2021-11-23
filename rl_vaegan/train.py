@@ -1,27 +1,26 @@
-import sys
 import os
+import sys
+
 sys.path.append(os.getcwd())
-from rl_vaegan.utils import prepare_sub_folder, write_loss, get_config, write_2images
 import argparse
-from torch.autograd import Variable
-from rl_vaegan.trainer import RL_VAEGAN
-import torch.backends.cudnn as cudnn
-import torch
-import torch.nn.functional as F
-import random as r
-import numpy as np
-import random
 from collections import deque
+
+import numpy as np
 import tensorboardX
-import shutil
-import ssl
-import agent.my_optim as my_optim
+import torch
+import torch.backends.cudnn as cudnn
+import torch.nn.functional as F
 from agent.envs import create_atari_env
 from agent.model import ActorCritic
 from attack.attacks import FGSM
+
+from rl_vaegan.trainer import RL_VAEGAN
+from rl_vaegan.utils import (get_config, prepare_sub_folder, write_2images,
+                             write_loss)
+
 try:
     from itertools import izip as zip
-except ImportError: # will be 3.x series
+except ImportError:  # will be 3.x series
     pass
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -29,14 +28,41 @@ torch.cuda.set_device(0)
 
 # if __name__ == "__main__":
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='rl_vaegan/config.yaml', help='Path to the config file.')
-parser.add_argument('--output_path', type=str, default='rl_vaegan/', help="outputs path")
-parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
-parser.add_argument('--max-episode-length', type=int, default=2000,help='maximum length of an episode (default: 1000000)')
-parser.add_argument('--env-name', default='BreakoutDeterministic-v4', help='environment to train on (default: BreakoutDeterministic-v4 | PongDeterministic)')
-parser.add_argument('--ft-setting', default='full-ft', help='fine-tuning setting: from-scratch|full-ft|random-output|partial-ft|partial-random-ft')
-parser.add_argument('--attacker', default='fgsm', help='adversary attack algorithms: fgsm|rand_fgsm|cw2')
-parser.add_argument('--epsilon-adv', type=float, default=0.003, help='epsilon perturbation for attack model.')
+parser.add_argument('--config',
+                    type=str,
+                    default='rl_vaegan/config.yaml',
+                    help='Path to the config file.')
+parser.add_argument('--output_path',
+                    type=str,
+                    default='rl_vaegan/',
+                    help="outputs path")
+parser.add_argument('--seed',
+                    type=int,
+                    default=1,
+                    help='random seed (default: 1)')
+parser.add_argument('--max-episode-length',
+                    type=int,
+                    default=2000,
+                    help='maximum length of an episode (default: 1000000)')
+parser.add_argument(
+    '--env-name',
+    default='BreakoutDeterministic-v4',
+    help=
+    'environment to train on (default: BreakoutDeterministic-v4 | PongDeterministic)'
+)
+parser.add_argument(
+    '--ft-setting',
+    default='full-ft',
+    help=
+    'fine-tuning setting: from-scratch|full-ft|random-output|partial-ft|partial-random-ft'
+)
+parser.add_argument('--attacker',
+                    default='fgsm',
+                    help='adversary attack algorithms: fgsm|rand_fgsm|cw2')
+parser.add_argument('--epsilon-adv',
+                    type=float,
+                    default=0.003,
+                    help='epsilon perturbation for attack model.')
 
 opts = parser.parse_args()
 
@@ -57,7 +83,7 @@ if opts.ft_setting == 'full-ft':
         fname = './agent/trained_model/pong/4000.pth.tar'
     else:
         sys.exit('Only support Break or Pong')
-        
+
     if os.path.isfile(fname):
         checkpoint = torch.load(fname)
         trained_model.load_state_dict(checkpoint['state_dict'])
@@ -80,10 +106,10 @@ print('checkpoint: ', checkpoint_directory)
 print(f'attacker {opts.attacker} with epsilon {opts.epsilon_adv}')
 
 # Start training
-iterations =  0
+iterations = 0
 
 trained_model.eval().cuda()
-state = env.reset() #(3,80,80)
+state = env.reset()  #(3,80,80)
 state = torch.from_numpy(state).unsqueeze(0).cuda()
 episode_length = 1
 epoch = 0
@@ -95,11 +121,12 @@ while True:
     is_Terminal = False
     rewards = []
     while not is_Terminal:
-        value, logit = trained_model(state) #(1,3,80,80)
+        value, logit = trained_model(state)  #(1,3,80,80)
         prob = F.softmax(logit, dim=-1)
         action = prob.multinomial(num_samples=1)[0]
-        if opts.attacker ==  'fgsm':
-            state_adv = FGSM(trained_model, name='a3c', eps=opts.epsilon_adv)._attack(state, action)
+        if opts.attacker == 'fgsm':
+            state_adv = FGSM(trained_model, name='a3c',
+                             eps=opts.epsilon_adv)._attack(state, action)
 
         images_a, images_b = state_adv.cuda().detach(), state.cuda().detach()
         dis_loss = trainer.dis_update(images_a, images_b, iterations, config)
@@ -115,13 +142,17 @@ while True:
         if actions.count(actions[0]) == actions.maxlen:
             done = True
         if done:
-            print(f'epoch {epoch} - steps {episode_length} - total rewards {np.sum(rewards) + reward}')
+            print(
+                f'epoch {epoch} - steps {episode_length} - total rewards {np.sum(rewards) + reward}'
+            )
             actions.clear()
             state = env.reset()
         rewards.append(reward)
         state = torch.from_numpy(state).unsqueeze(0).cuda()
         if iterations % 50 == 0:
-            print(f"Iteration: {iterations} | {max_iter}, \t dis_loss:{dis_loss} \t gen_loss:{gen_loss} ")
+            print(
+                f"Iteration: {iterations} | {max_iter}, \t dis_loss:{dis_loss} \t gen_loss:{gen_loss} "
+            )
         if (iterations + 1) % config['snapshot_save_iter'] == 0:
             trainer.save(checkpoint_directory, iterations)
 

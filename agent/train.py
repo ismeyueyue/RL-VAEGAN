@@ -1,12 +1,15 @@
-import torch
-import torch.nn.functional as F
-import torch.optim as optim
-import numpy as  np
-from agent.envs import create_atari_env
-from agent.model import ActorCritic
 import os
 import pickle
 import time
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+import torch.optim as optim
+
+from agent.envs import create_atari_env
+from agent.model import ActorCritic
+
 
 def prepare_sub_folder(output_directory):
     result_directory = os.path.join(output_directory, 'results')
@@ -18,6 +21,7 @@ def prepare_sub_folder(output_directory):
         print("Creating directory: {}".format(checkpoint_directory))
         os.makedirs(checkpoint_directory)
     return checkpoint_directory, result_directory
+
 
 def ensure_shared_grads(model, shared_model):
     for param, shared_param in zip(model.parameters(),
@@ -41,7 +45,8 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
 
     model.train()
     output_directory = 'outputs/' + args.env_name
-    checkpoint_directory, result_directory = prepare_sub_folder(output_directory)
+    checkpoint_directory, result_directory = prepare_sub_folder(
+        output_directory)
     print(f'checkpoint directory {checkpoint_directory}')
     time.sleep(10)
     state = env.reset()
@@ -85,7 +90,9 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
 
             if done:
                 # print(episode_length)
-                print(f'epoch {epoch} - steps {total_step} - total rewards {np.sum(rewards) + reward}')
+                print(
+                    f'epoch {epoch} - steps {total_step} - total rewards {np.sum(rewards) + reward}'
+                )
                 total_step = 1
                 episode_length = 0
                 state = env.reset()
@@ -123,10 +130,10 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
                 log_probs[i] * gae.detach() - args.entropy_coef * entropies[i]
 
         optimizer.zero_grad()
-        
-        policy_loss_ep.append(policy_loss.detach().numpy()[0,0])
-        value_loss_ep.append(value_loss.detach().numpy()[0,0])
-        
+
+        policy_loss_ep.append(policy_loss.detach().numpy()[0, 0])
+        value_loss_ep.append(value_loss.detach().numpy()[0, 0])
+
         (policy_loss + args.value_loss_coef * value_loss).backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
@@ -134,15 +141,21 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
         optimizer.step()
 
         if epoch % 1000 == 0:
-            torch.save({'state_dict': model.state_dict()}, checkpoint_directory + '/' + str(epoch) + ".pth.tar")
-            with open(result_directory + '/' +  str(epoch) +  '_rewards.pkl', 'wb') as f:
+            torch.save({'state_dict': model.state_dict()},
+                       checkpoint_directory + '/' + str(epoch) + ".pth.tar")
+            with open(result_directory + '/' + str(epoch) + '_rewards.pkl',
+                      'wb') as f:
                 pickle.dump(rewards_ep, f)
-            with open(result_directory + '/' + str(epoch) + '_policy_loss.pkl', 'wb') as f:
+            with open(result_directory + '/' + str(epoch) + '_policy_loss.pkl',
+                      'wb') as f:
                 pickle.dump(policy_loss_ep, f)
-            with open(result_directory + '/' + str(epoch) + '_value_loss.pkl', 'wb') as f:
+            with open(result_directory + '/' + str(epoch) + '_value_loss.pkl',
+                      'wb') as f:
                 pickle.dump(value_loss_ep, f)
 
         if episode_length >= 10000000:
             break
 
-    torch.save({'state_dict': model.state_dict(),}, checkpoint_directory + '/Last' + ".pth.tar")
+    torch.save({
+        'state_dict': model.state_dict(),
+    }, checkpoint_directory + '/Last' + ".pth.tar")

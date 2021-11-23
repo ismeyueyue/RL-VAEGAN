@@ -3,31 +3,54 @@ from __future__ import print_function
 import argparse
 import os
 import sys
+
 sys.path.append(os.getcwd())
 
+import agent.my_optim as my_optim
 import torch
 import torch.multiprocessing as mp
-from torch.optim import Adam
-
-import agent.my_optim as my_optim
 from agent.envs import create_atari_env
 from agent.model import ActorCritic, ActorCritic_Substitude
 from agent.train import train
-from attack.rl_vaegan_defense import transfer_defense
+from torch.optim import Adam
 
+from attack.rl_vaegan_defense import transfer_defense
 
 # Training settings
 parser = argparse.ArgumentParser(description='A3C')
-parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
-parser.add_argument('--max-episode-length', type=int, default=1000000, help='maximum length of an episode (default: 1000000)')
-parser.add_argument('--env-name', default='BreakoutDeterministic-v4', help='environment to train on (default: BreakoutDeterministic-v4 | PongDeterministic)')
+parser.add_argument('--seed',
+                    type=int,
+                    default=1,
+                    help='random seed (default: 1)')
+parser.add_argument('--max-episode-length',
+                    type=int,
+                    default=1000000,
+                    help='maximum length of an episode (default: 1000000)')
+parser.add_argument(
+    '--env-name',
+    default='BreakoutDeterministic-v4',
+    help=
+    'environment to train on (default: BreakoutDeterministic-v4 | PongDeterministic)'
+)
 
-parser.add_argument('--test-attacker', default='fgsm', help='adversary attack algorithms: fgsm|rand_fgsm|cw2')
-parser.add_argument('--test-epsilon-adv', type=float, default=0.003, help='epsilon perturbation for attack model.')
+parser.add_argument('--test-attacker',
+                    default='fgsm',
+                    help='adversary attack algorithms: fgsm|rand_fgsm|cw2')
+parser.add_argument('--test-epsilon-adv',
+                    type=float,
+                    default=0.003,
+                    help='epsilon perturbation for attack model.')
 
-parser.add_argument('--which-epoch', type=str, default='00380000', help='using specific epoch trained rl_vaegan model to defense')
+parser.add_argument(
+    '--which-epoch',
+    type=str,
+    default='00380000',
+    help='using specific epoch trained rl_vaegan model to defense')
 
-parser.add_argument('--gpu-id', type=int, default=0, help='epsilon perturbation for attack model.')
+parser.add_argument('--gpu-id',
+                    type=int,
+                    default=0,
+                    help='epsilon perturbation for attack model.')
 
 if __name__ == '__main__':
     mp.set_start_method("spawn")
@@ -37,13 +60,14 @@ if __name__ == '__main__':
 
     torch.cuda.set_device(args.gpu_id)
 
-
     torch.manual_seed(args.seed)
     env = create_atari_env(args.env_name, args)
     if args.black_box_attack:
-        shared_model = ActorCritic_Substitude(env.observation_space.shape[0], env.action_space)
+        shared_model = ActorCritic_Substitude(env.observation_space.shape[0],
+                                              env.action_space)
     else:
-        shared_model = ActorCritic(env.observation_space.shape[0], env.action_space)
+        shared_model = ActorCritic(env.observation_space.shape[0],
+                                   env.action_space)
     shared_model.share_memory()
 
     if args.no_shared:
@@ -61,7 +85,7 @@ if __name__ == '__main__':
             fname = './agent/trained_model/pong/4000.pth.tar'
         else:
             sys.exit('Only support Break or Pong')
-        
+
         print(fname)
         if os.path.isfile(fname):
             checkpoint = torch.load(fname)

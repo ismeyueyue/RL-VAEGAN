@@ -1,21 +1,21 @@
 import os
-import torch
-import numpy as np
-import torch.nn as nn
-import torch.optim as optim
-from tqdm import tqdm, trange
-import matplotlib.pyplot as plt
-import torch.nn.functional as F
-import torchvision.utils as vutils
-from torch.autograd import Variable
-from torch.utils.data import TensorDataset, DataLoader
-
 from typing import TypeVar
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.autograd import Variable
+from torch.utils.data import DataLoader, TensorDataset
+from tqdm import tqdm, trange
 
 EPSILON = 1e-8
 _half_tensor = None
 
 T = TypeVar('T')
+
 
 def to(thing: T, device=None) -> T:
     if thing is None:
@@ -27,6 +27,7 @@ def to(thing: T, device=None) -> T:
     if isinstance(thing, dict):
         return {k: to(v, device) for k, v in thing.items()}
     return thing.to(device)
+
 
 class AdversarialAttack:
     def __init__(self, model, name):
@@ -44,7 +45,7 @@ class AdversarialAttack:
             all_y.append(y)
             x, y = to(x), to(y)
             x_adv = self._attack(x, y)
-            value, y_adv  = self.model(x_adv)
+            value, y_adv = self.model(x_adv)
             # y_adv = self.model(x_adv)
             pred = y_adv.argmax(dim=1, keepdim=True)
             correct += pred.eq(y.view_as(pred)).sum().item()
@@ -62,7 +63,10 @@ class AdversarialAttack:
         raise NotImplementedError()
 
     def save(self, save_dir):
-        torch.save({'x': self.x.cpu().detach(), 'y': self.y.cpu().detach()}, os.path.join(save_dir, self.name + '.pth'))
+        torch.save({
+            'x': self.x.cpu().detach(),
+            'y': self.y.cpu().detach()
+        }, os.path.join(save_dir, self.name + '.pth'))
 
 
 class NoAttack(AdversarialAttack):
@@ -71,7 +75,8 @@ class NoAttack(AdversarialAttack):
 
 
 class BlackBoxAttack(NoAttack):
-    def __init__(self, oracle, name, substitute, holdout, white_box: AdversarialAttack):
+    def __init__(self, oracle, name, substitute, holdout,
+                 white_box: AdversarialAttack):
         super().__init__(oracle, name)
         self.substitute = substitute
         self.white_box = white_box
@@ -83,11 +88,13 @@ class BlackBoxAttack(NoAttack):
 
     def _jacobian_augmentation(self, prev_x, prev_y):
         bs = self.batch_size
-        for i in trange(int(np.ceil(prev_x.size(0) / bs)), desc='Jacobian Augmentation'):
+        for i in trange(int(np.ceil(prev_x.size(0) / bs)),
+                        desc='Jacobian Augmentation'):
             x = to(prev_x[i * bs:(i + 1) * bs])
             x.requires_grad_()
             preds = self.substitute(x)
-            score = torch.gather(preds, 1, to(prev_y[i * bs:(i + 1) * bs].unsqueeze(1)))
+            score = torch.gather(preds, 1,
+                                 to(prev_y[i * bs:(i + 1) * bs].unsqueeze(1)))
             score.sum().backward()
             prev_x[i * bs:(i + 1) * bs].add_(self.lamb * x.grad.sign().cpu())
         return self._clamp(prev_x)
@@ -97,13 +104,16 @@ class BlackBoxAttack(NoAttack):
         net = self.substitute
         optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
         x, y = self.holdout
-        for aug_iter in trange(self.augmentation_iters, desc='Augmentation Iters'):
+        for aug_iter in trange(self.augmentation_iters,
+                               desc='Augmentation Iters'):
             net.train()
             for epoch in trange(self.epochs_per_aug, desc='Inner Epochs'):
                 indices = np.arange(x.size(0))
                 np.random.shuffle(indices)
-                for batch in trange(int(np.ceil(len(indices) // bs)), desc='Minibatches'):
-                    x_b, y_b = x[batch * bs:(batch + 1) * bs], y[batch * bs:(batch + 1) * bs]
+                for batch in trange(int(np.ceil(len(indices) // bs)),
+                                    desc='Minibatches'):
+                    x_b, y_b = x[batch * bs:(batch + 1) *
+                                 bs], y[batch * bs:(batch + 1) * bs]
                     pred = net(to(x_b))
                     loss = F.cross_entropy(pred, to(y_b))
                     optimizer.zero_grad()
@@ -113,7 +123,7 @@ class BlackBoxAttack(NoAttack):
             if aug_iter != self.augmentation_iters - 1:
                 new_x = self._jacobian_augmentation(x, y)
                 # new_y = self.model(to(new_x)).argmax(dim=1)  # oracle
-                value, new_y  = self.model(to(new_x)).argmax(dim=1)
+                value, new_y = self.model(to(new_x)).argmax(dim=1)
                 x = torch.cat([x, new_x], dim=0)
                 y = torch.cat([y, new_y.cpu()], dim=0)
 
@@ -202,10 +212,14 @@ class L2Adversary:
     - ``W``: the width
     - ``M``: the number of classes
     """
-
-    def __init__(self, confidence=0.0, c_range=(1e-3, 1e10),
-                 search_steps=5, max_steps=20, abort_early=True,
-                 box=(-1., 1.), optimizer_lr=1e-2):
+    def __init__(self,
+                 confidence=0.0,
+                 c_range=(1e-3, 1e10),
+                 search_steps=5,
+                 max_steps=20,
+                 abort_early=True,
+                 box=(-1., 1.),
+                 optimizer_lr=1e-2):
         """
         :param confidence: the confidence constant, i.e. the $\\kappa$ in paper
         :type confidence: float
@@ -244,19 +258,19 @@ class L2Adversary:
         though, the learning rate is set to 5e-4.
         """
         if len(c_range) != 2:
-            raise TypeError('c_range ({}) should be of form '
-                            'tuple([lower_bound, upper_bound])'
-                            .format(c_range))
+            raise TypeError(
+                'c_range ({}) should be of form '
+                'tuple([lower_bound, upper_bound])'.format(c_range))
         if c_range[0] >= c_range[1]:
             raise ValueError('c_range lower bound ({}) is expected to be less '
                              'than c_range upper bound ({})'.format(*c_range))
         if len(box) != 2:
             raise TypeError('box ({}) should be of form '
-                            'tuple([lower_bound, upper_bound])'
-                            .format(box))
+                            'tuple([lower_bound, upper_bound])'.format(box))
         if box[0] >= box[1]:
-            raise ValueError('box lower bound ({}) is expected to be less than '
-                             'box upper bound ({})'.format(*box))
+            raise ValueError(
+                'box lower bound ({}) is expected to be less than '
+                'box upper bound ({})'.format(*box))
         self.confidence = float(confidence)
         self.c_range = (float(c_range[0]), float(c_range[1]))
         self.binary_search_steps = search_steps
@@ -334,22 +348,25 @@ class L2Adversary:
         inputs_tanh_var = Variable(inputs_tanh, requires_grad=False)
 
         # the one-hot encoding of `targets`
-        targets_oh = torch.zeros(targets.size() + (num_classes,)).to(inputs.device)  # type: torch.FloatTensor
+        targets_oh = torch.zeros(targets.size() + (num_classes, )).to(
+            inputs.device)  # type: torch.FloatTensor
         targets_oh.scatter_(1, targets.unsqueeze(1), 1.0)
         targets_oh_var = Variable(targets_oh, requires_grad=False)
 
         # the perturbation variable to optimize.
         # `pert_tanh` is essentially the adversarial perturbation in tanh-space.
         # In Carlini's code it's denoted as `modifier`
-        pert_tanh = torch.zeros(inputs.size()).to(inputs.device)  # type: torch.FloatTensor
+        pert_tanh = torch.zeros(inputs.size()).to(
+            inputs.device)  # type: torch.FloatTensor
         pert_tanh_var = Variable(pert_tanh, requires_grad=True)
 
         optimizer = optim.Adam([pert_tanh_var], lr=self.optimizer_lr)
         for sstep in range(self.binary_search_steps):
             if self.repeat and sstep == self.binary_search_steps - 1:
                 scale_consts_np = upper_bounds_np
-            scale_consts = torch.from_numpy(np.copy(scale_consts_np)).float().to(
-                inputs.device)  # type: torch.FloatTensor
+            scale_consts = torch.from_numpy(
+                np.copy(scale_consts_np)).float().to(
+                    inputs.device)  # type: torch.FloatTensor
             scale_consts_var = Variable(scale_consts, requires_grad=False)
 
             # the minimum L2 norms of perturbations found during optimization
@@ -365,7 +382,8 @@ class L2Adversary:
                                    pert_tanh_var, targets_oh_var,
                                    scale_consts_var)
 
-                if self.abort_early and not optim_step % (self.max_steps // 10):
+                if self.abort_early and not optim_step % (self.max_steps //
+                                                          10):
                     if batch_loss > prev_batch_loss * (1 - self.ae_tol):
                         break
                     prev_batch_loss = batch_loss
@@ -407,14 +425,16 @@ class L2Adversary:
                     # scale_consts_np[i] until
                     # `scale_consts_np[i] > 0.1 * c_range[1]`
                     if upper_bounds_np[i] < self.c_range[1] * 0.1:
-                        scale_consts_np[i] = (lower_bounds_np[i] + upper_bounds_np[i]) / 2
+                        scale_consts_np[i] = (lower_bounds_np[i] +
+                                              upper_bounds_np[i]) / 2
                 else:
                     # failure; multiply `scale_const` by ten if no solution
                     # found; otherwise do binary search
                     if scale_consts_np[i] > lower_bounds_np[i]:
                         lower_bounds_np[i] = scale_consts_np[i]
                     if upper_bounds_np[i] < self.c_range[1] * 0.1:
-                        scale_consts_np[i] = (lower_bounds_np[i] + upper_bounds_np[i]) / 2
+                        scale_consts_np[i] = (lower_bounds_np[i] +
+                                              upper_bounds_np[i]) / 2
                     else:
                         scale_consts_np[i] *= 10
         return torch.from_numpy(o_best_advx).float()
@@ -444,16 +464,17 @@ class L2Adversary:
         """
         # the adversarial examples in the image space
         # of dimension [B x C x H x W]
-        advxs_var = self._from_tanh_space(inputs_tanh_var + pert_tanh_var)  # type: Variable
+        advxs_var = self._from_tanh_space(inputs_tanh_var +
+                                          pert_tanh_var)  # type: Variable
         # the perturbed activation before softmax
-        # pert_outputs_var = model(advxs_var) 
-        value, pert_outputs_var = model(advxs_var) # type: Variable
+        # pert_outputs_var = model(advxs_var)
+        value, pert_outputs_var = model(advxs_var)  # type: Variable
         # the original inputs
         inputs_var = self._from_tanh_space(inputs_tanh_var)  # type: Variable
 
         perts_norm_var = torch.pow(advxs_var - inputs_var, 2)
-        perts_norm_var = torch.sum(perts_norm_var.view(
-            perts_norm_var.size(0), -1), 1)
+        perts_norm_var = torch.sum(
+            perts_norm_var.view(perts_norm_var.size(0), -1), 1)
 
         # In Carlini's code, `target_activ_var` is called `real`.
         # It should be a Variable of tensor of dimension [B], such that the
@@ -478,8 +499,9 @@ class L2Adversary:
         # noinspection PyArgumentList
         assert (pert_outputs_var.max(1)[0] >= -inf).all(), 'assumption failed'
         # noinspection PyArgumentList
-        maxother_activ_var = torch.max(((1 - targets_oh_var) * pert_outputs_var
-                                        - targets_oh_var * inf), 1)[0]
+        maxother_activ_var = torch.max(
+            ((1 - targets_oh_var) * pert_outputs_var - targets_oh_var * inf),
+            1)[0]
 
         # Compute $f(x')$, where $x'$ is the adversarial example in image space.
         # The result `f_var` should be of dimension [B]
@@ -488,9 +510,12 @@ class L2Adversary:
         # `self.confidence`
         #
         # noinspection PyArgumentList
-        f_var = torch.clamp(target_activ_var - maxother_activ_var + self.confidence, min=0.0)
+        f_var = torch.clamp(target_activ_var - maxother_activ_var +
+                            self.confidence,
+                            min=0.0)
         # the total loss of current batch, should be of dimension [1]
-        batch_loss_var = torch.sum(perts_norm_var + c_var * f_var)  # type: Variable
+        batch_loss_var = torch.sum(perts_norm_var +
+                                   c_var * f_var)  # type: Variable
 
         # Do optimization for one step
         optimizer.zero_grad()
@@ -620,7 +645,6 @@ class L2Adversary:
 #             plt.title(attacker.name)
 #             plt.imshow(np.transpose(vutils.make_grid(attacker.x[:9], nrow=3, range=(-1.0, 1.0), padding=5), (1, 2, 0)))
 #         plt.show()
-
 
 # if __name__ == '__main__':
 #     main()

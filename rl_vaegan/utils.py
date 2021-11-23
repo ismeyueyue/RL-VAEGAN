@@ -2,21 +2,21 @@
 Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
+import math
+import os
+
+import numpy as np
+import torch
+import torch.nn.init as init
 # from torch.utils.serialization import load_lua
 import torchfile
-from torch.utils.data import DataLoader
-from rl_vaegan.networks import Vgg16
+import torchvision.utils as vutils
+import yaml
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
 from torchvision import transforms
-import torch
-import os
-import math
-import torchvision.utils as vutils
-import yaml
-import numpy as np
-import torch.nn.init as init
-import time
+
+from rl_vaegan.networks import Vgg16
 
 
 def get_config(config):
@@ -25,16 +25,23 @@ def get_config(config):
 
 
 def __write_images(image_outputs, display_image_num, file_name):
-    image_outputs = [images.expand(-1, 3, -1, -1) for images in image_outputs]  # expand gray-scale images to 3 channels
-    image_tensor = torch.cat([images[:display_image_num] for images in image_outputs], 0)
-    image_grid = vutils.make_grid(image_tensor.data, nrow=display_image_num, padding=0, normalize=True)
+    image_outputs = [images.expand(-1, 3, -1, -1) for images in image_outputs
+                     ]  # expand gray-scale images to 3 channels
+    image_tensor = torch.cat(
+        [images[:display_image_num] for images in image_outputs], 0)
+    image_grid = vutils.make_grid(image_tensor.data,
+                                  nrow=display_image_num,
+                                  padding=0,
+                                  normalize=True)
     vutils.save_image(image_grid, file_name, nrow=1)
 
 
 def write_2images(image_outputs, display_image_num, image_directory, postfix):
     n = len(image_outputs)
-    __write_images(image_outputs[0:n // 2], display_image_num, '%s/gen_a2b_%s.jpg' % (image_directory, postfix))
-    __write_images(image_outputs[n // 2:n], display_image_num, '%s/gen_b2a_%s.jpg' % (image_directory, postfix))
+    __write_images(image_outputs[0:n // 2], display_image_num,
+                   '%s/gen_a2b_%s.jpg' % (image_directory, postfix))
+    __write_images(image_outputs[n // 2:n], display_image_num,
+                   '%s/gen_b2a_%s.jpg' % (image_directory, postfix))
 
 
 def prepare_sub_folder(output_directory):
@@ -47,11 +54,14 @@ def prepare_sub_folder(output_directory):
         print("Creating directory: {}".format(checkpoint_directory))
         os.makedirs(checkpoint_directory)
     return checkpoint_directory, image_directory
-    
+
 
 def write_loss(iterations, trainer, train_writer):
-    members = [attr for attr in dir(trainer) if not callable(getattr(trainer, attr)) and not attr.startswith("__") and (
-                           'loss' in attr or 'grad' in attr or 'nwd' in attr)]
+    members = [
+        attr for attr in dir(trainer)
+        if not callable(getattr(trainer, attr)) and not attr.startswith("__")
+        and ('loss' in attr or 'grad' in attr or 'nwd' in attr)
+    ]
     for m in members:
         train_writer.add_scalar(m, getattr(trainer, m), iterations + 1)
 
@@ -60,8 +70,10 @@ def write_loss(iterations, trainer, train_writer):
 def get_model_list(dirname, key):
     if os.path.exists(dirname) is False:
         return None
-    gen_models = [os.path.join(dirname, f) for f in os.listdir(dirname) if
-                  os.path.isfile(os.path.join(dirname, f)) and key in f and ".pt" in f]
+    gen_models = [
+        os.path.join(dirname, f) for f in os.listdir(dirname)
+        if os.path.isfile(os.path.join(dirname, f)) and key in f and ".pt" in f
+    ]
     if gen_models is None:
         return None
     gen_models.sort()
@@ -88,7 +100,7 @@ def load_vgg16(model_dir):
     return vgg
 
 
-def vgg_preprocess(batch):#torch.Size([1, 3, 80, 80])
+def vgg_preprocess(batch):  #torch.Size([1, 3, 80, 80])
     tensortype = type(batch.data)
     (r, g, b) = torch.chunk(batch, 3, dim=1)
     batch = torch.cat((b, g, r), dim=1)  # convert RGB to BGR
@@ -102,20 +114,26 @@ def vgg_preprocess(batch):#torch.Size([1, 3, 80, 80])
 
 
 def get_scheduler(optimizer, hyperparameters, iterations=-1):
-    if 'lr_policy' not in hyperparameters or hyperparameters['lr_policy'] == 'constant':
+    if 'lr_policy' not in hyperparameters or hyperparameters[
+            'lr_policy'] == 'constant':
         scheduler = None  # constant scheduler
     elif hyperparameters['lr_policy'] == 'step':
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=hyperparameters['step_size'],
-                                        gamma=hyperparameters['gamma'], last_epoch=iterations)
+        scheduler = lr_scheduler.StepLR(optimizer,
+                                        step_size=hyperparameters['step_size'],
+                                        gamma=hyperparameters['gamma'],
+                                        last_epoch=iterations)
     else:
-        return NotImplementedError('learning rate policy [%s] is not implemented', hyperparameters['lr_policy'])
+        return NotImplementedError(
+            'learning rate policy [%s] is not implemented',
+            hyperparameters['lr_policy'])
     return scheduler
 
 
 def weights_init(init_type='gaussian'):
     def init_fun(m):
         classname = m.__class__.__name__
-        if (classname.find('Conv') == 0 or classname.find('Linear') == 0) and hasattr(m, 'weight'):
+        if (classname.find('Conv') == 0
+                or classname.find('Linear') == 0) and hasattr(m, 'weight'):
             # print m.__class__.__name__
             if init_type == 'gaussian':
                 init.normal_(m.weight.data, 0.0, 0.02)
